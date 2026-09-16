@@ -34,6 +34,8 @@ When `neural-int/commiter-cli` publishes a GitHub Release, it sends a `commiter-
 3. Runs `brew audit --strict`, `brew install`, and `brew test`
 4. Opens a PR from `automation/commiter-vX.Y.Z`
 
+Formula versions only move forward. A dispatch for an older tag, or for the same tag with a different SHA-256, is rejected. To change a published artifact, cut a new version.
+
 Merge that PR to publish the Formula update. Users can then run:
 
 ```sh
