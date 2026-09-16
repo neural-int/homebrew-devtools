@@ -14,14 +14,29 @@ This tap currently packages:
 | --- | --- | --- |
 | `commiter` | Local-first Git commit planning CLI | Apple Silicon, macOS 14+ |
 
-`commiter` 1.0.1 is installed from the signed and notarized GitHub Release archive:
-
-- URL: <https://github.com/neural-int/commiter-cli/releases/download/v1.0.1/commiter_1.0.1_darwin_arm64.zip>
-- Source: <https://github.com/neural-int/commiter-cli>
+Source: <https://github.com/neural-int/commiter-cli>
 
 After installation:
 
 ```sh
 commiter setup
 commiter doctor
+```
+
+## Formula updates
+
+`commiter` Formula bumps are not pushed to `main` directly.
+
+When `neural-int/commiter-cli` publishes a GitHub Release, it sends a `commiter-release` `repository_dispatch` to this repository with the version, tag, ZIP URL, and SHA-256. `.github/workflows/update-commiter.yml` then:
+
+1. Verifies the published Release and ZIP checksum
+2. Updates `Formula/commiter.rb`, or creates it if missing
+3. Runs `brew audit --strict`, `brew install`, and `brew test`
+4. Opens a PR from `automation/commiter-vX.Y.Z`
+
+Merge that PR to publish the Formula update. Users can then run:
+
+```sh
+brew update
+brew upgrade commiter
 ```
