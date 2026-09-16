@@ -42,3 +42,10 @@ Merge that PR to publish the Formula update. Users can then run:
 brew update
 brew upgrade commiter
 ```
+
+## Issues
+
+For issues with `commiter` itself, please report them to:
+https://github.com/neural-int/commiter-cli
+
+Use this repository only for Homebrew installation or Formula-related issues.
