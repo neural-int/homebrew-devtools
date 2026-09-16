@@ -177,7 +177,7 @@ jobs:
       - name: brew install
         if: steps.formula.outputs.status != 'unchanged'
         shell: bash
-        run: brew install --yes --formula neural-int/devtools/commiter
+        run: brew install --no-ask --formula neural-int/devtools/commiter
 
       - name: brew test
         if: steps.formula.outputs.status != 'unchanged'

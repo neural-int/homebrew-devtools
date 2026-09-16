@@ -92,10 +92,10 @@ def main() -> None:
 
     if FORMULA_PATH.exists():
         text = FORMULA_PATH.read_text(encoding="utf-8")
-        updated, url_count = URL_RE.subn(rf'\1"{url}"', text, count=1)
-        updated, sha_count = SHA_RE.subn(rf'\1"{sha256}"', updated, count=1)
-        if url_count != 1 or sha_count != 1:
+        if len(URL_RE.findall(text)) != 1 or len(SHA_RE.findall(text)) != 1:
             fail("Formula/commiter.rb must contain exactly one url and sha256 stanza")
+        updated = URL_RE.sub(rf'\1"{url}"', text, count=1)
+        updated = SHA_RE.sub(rf'\1"{sha256}"', updated, count=1)
         if updated == text:
             print("unchanged")
             return
