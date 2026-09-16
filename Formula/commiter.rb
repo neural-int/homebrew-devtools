@@ -6,7 +6,7 @@ class Commiter < Formula
   license "MIT"
 
   livecheck do
-    url :homepage
+    url :stable
     regex(/^v?(\d+(?:\.\d+)+)$/i)
   end
 

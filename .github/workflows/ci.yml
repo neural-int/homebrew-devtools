@@ -1,0 +1,72 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  updater:
+    name: Test formula updater
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out tap
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Run updater unit tests
+        run: python3 -m unittest discover -s .github/scripts -p 'test_*.py' -v
+
+  formula:
+    name: Audit, install, and test Formula
+    runs-on: macos-15
+    timeout-minutes: 30
+    env:
+      HOMEBREW_NO_ANALYTICS: 1
+      HOMEBREW_NO_AUTO_UPDATE: 1
+      HOMEBREW_NO_ENV_HINTS: 1
+      HOMEBREW_NO_INSTALL_CLEANUP: 1
+    steps:
+      - name: Check out tap
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Register local tap
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          tap_dir="$(brew --repository neural-int/devtools)"
+          mkdir -p "$(dirname "$tap_dir")"
+          workspace="$(pwd -P)"
+          if [[ -e "$tap_dir" || -L "$tap_dir" ]]; then
+            current="$(python3 -c 'import os,sys; print(os.path.realpath(sys.argv[1]))' "$tap_dir")"
+            if [[ "$current" != "$workspace" ]]; then
+              echo "::error::Tap path ${tap_dir} already exists and is not this workspace"
+              exit 1
+            fi
+          else
+            ln -sfn "$GITHUB_WORKSPACE" "$tap_dir"
+          fi
+
+      - name: brew style
+        run: brew style --formula neural-int/devtools/commiter
+
+      - name: brew audit --strict
+        run: brew audit --strict --formula neural-int/devtools/commiter
+
+      - name: brew install
+        run: brew install --no-ask --formula neural-int/devtools/commiter
+
+      - name: brew test
+        run: brew test --verbose neural-int/devtools/commiter
