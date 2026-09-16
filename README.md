@@ -1,5 +1,7 @@
 # homebrew-devtools
 
+English | [日本語](README.ja.md)
+
 Homebrew tap for neural-int CLI and developer tools.
 
 ## Install
