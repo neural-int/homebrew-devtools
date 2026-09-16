@@ -12,7 +12,7 @@ This tap currently packages:
 
 | Formula | Description | Platform |
 | --- | --- | --- |
-| `commiter` | Local-first Git commit planning CLI | Apple Silicon, macOS 14+ |
+| `commiter` | Local-first Git commit planning CLI | Apple Silicon, macOS 15+ |
 
 Source: <https://github.com/neural-int/commiter-cli>
 
