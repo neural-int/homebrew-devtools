@@ -29,16 +29,17 @@ commiter doctor
 
 `commiter` の Formula 更新は `main` ブランチへ直接 push されることはありません。
 
-`neural-int/commiter-cli` で GitHub Release が公開されると、バージョン、タグ、ZIP のダウンロード URL、および SHA-256 チェックサムを含む `commiter-release` の `repository_dispatch` イベントが本リポジトリに送信されます。その後、`.github/workflows/update-commiter.yml` によって以下の処理が自動実行されます:
+`neural-int/commiter-cli` で GitHub Release が公開されると、バージョン、タグ、ZIP のダウンロード URL、および SHA-256 checksumを含む `commiter-release` の `repository_dispatch` イベントが本リポジトリに送信されます。その後、`.github/workflows/update-commiter.yml` によって以下の処理が自動実行されます:
 
-1. 公開された Release および ZIP のチェックサムの検証
-2. `Formula/commiter.rb` の更新（存在しない場合は新規作成）
+1. 公開された Release および ZIP のchecksumの検証
+2. `Formula/commiter.rb` の更新
 3. `brew audit --strict`、`brew install`、`brew test` の実行
 4. `automation/commiter-vX.Y.Z` ブランチからの Pull Request 作成
 
-Formula のバージョンは常に前進（新しいバージョンへの更新）のみ許可されます。古いタグへのディスパッチや、同一タグで異なる SHA-256 を持つディスパッチは拒否されます。公開済みの成果物を変更したい場合は、新しいバージョンをリリースしてください。
+Formula のバージョンは常に新バージョンへの更新のみ許可されます。古いタグへのディスパッチや、同一タグで異なる SHA-256 を持つディスパッチは拒否されます。
+作成された Pull Request をマージすることで Formula の更新が反映されます。
 
-作成された Pull Request をマージすることで Formula の更新が反映されます。マージ後、利用者は以下のコマンドで更新できます:
+利用者は以下のコマンドで更新できます:
 
 ```sh
 brew update
