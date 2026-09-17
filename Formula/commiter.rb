@@ -1,8 +1,8 @@
 class Commiter < Formula
   desc "Local-first Git commit planning CLI"
   homepage "https://github.com/neural-int/commiter-cli"
-  url "https://github.com/neural-int/commiter-cli/releases/download/v1.0.1/commiter_1.0.1_darwin_arm64.zip"
-  sha256 "eeecad933fa79db28e69d7c494142337365ccfad255faa754406e51b682b595e"
+  url "https://github.com/neural-int/commiter-cli/releases/download/v1.1.1/commiter_1.1.1_darwin_arm64.zip"
+  sha256 "ad1c8944f1d3e8aad7aaeaafe13098ce37de027db6d6319e017f65c4fe353ae6"
   license "MIT"
 
   livecheck do
