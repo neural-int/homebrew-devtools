@@ -40,6 +40,7 @@ class UpdateCommiterFormulaTest(unittest.TestCase):
         self.assertIn(SHA_A, text)
         self.assertIn('bin.install "bin/commiter"', text)
         self.assertIn('libexec.install "libexec/commiter-mlx-helper"', text)
+        self.assertIn('libexec.install "libexec/mlx.metallib"', text)
         self.assertIn("url :stable", text)
 
     def test_update(self) -> None:
@@ -53,11 +54,13 @@ class UpdateCommiterFormulaTest(unittest.TestCase):
         self.assertNotIn(V101_SHA, text)
         self.assertIn('bin.install "bin/commiter"', text)
         self.assertIn('libexec.install "libexec/commiter-mlx-helper"', text)
+        self.assertIn('libexec.install "libexec/mlx.metallib"', text)
 
     def test_update_repairs_existing_install_layout(self) -> None:
         legacy = formula_text("1.0.1", V101_SHA).replace(
             '    bin.install "bin/commiter"\n'
-            '    libexec.install "libexec/commiter-mlx-helper"',
+            '    libexec.install "libexec/commiter-mlx-helper"\n'
+            '    libexec.install "libexec/mlx.metallib"',
             '    bin.install "commiter"',
         )
         self.formula.parent.mkdir(parents=True, exist_ok=True)
@@ -69,12 +72,14 @@ class UpdateCommiterFormulaTest(unittest.TestCase):
         text = self.formula.read_text(encoding="utf-8")
         self.assertIn('bin.install "bin/commiter"', text)
         self.assertIn('libexec.install "libexec/commiter-mlx-helper"', text)
+        self.assertIn('libexec.install "libexec/mlx.metallib"', text)
 
     def test_update_repairs_existing_helper_smoke_test(self) -> None:
         legacy = formula_text("1.0.1", V101_SHA).replace(
             '  test do\n'
             '    assert_match version.to_s, shell_output("#{bin}/commiter version")\n'
             '    helper = libexec/"commiter-mlx-helper"\n'
+            '    assert_predicate libexec/"mlx.metallib", :exist?\n'
             '    assert_predicate helper, :executable?\n'
             '    system "codesign", "--verify", "--strict", helper\n'
             '    helper_output = pipe_output(helper.to_s, "", 0)\n'

@@ -42,6 +42,7 @@ class Commiter < Formula
   def install
     bin.install "bin/commiter"
     libexec.install "libexec/commiter-mlx-helper"
+    libexec.install "libexec/mlx.metallib"
   end
 
   def caveats
@@ -57,6 +58,7 @@ class Commiter < Formula
   test do
     assert_match version.to_s, shell_output("#{{bin}}/commiter version")
     helper = libexec/"commiter-mlx-helper"
+    assert_predicate libexec/"mlx.metallib", :exist?
     assert_predicate helper, :executable?
     system "codesign", "--verify", "--strict", helper
     helper_output = pipe_output(helper.to_s, "", 0)
