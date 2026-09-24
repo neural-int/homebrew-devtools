@@ -38,6 +38,8 @@ class UpdateCommiterFormulaTest(unittest.TestCase):
         text = self.formula.read_text(encoding="utf-8")
         self.assertIn(updater.expected_url("1.0.0"), text)
         self.assertIn(SHA_A, text)
+        self.assertIn('bin.install "bin/commiter"', text)
+        self.assertIn('libexec.install "libexec/commiter-mlx-helper"', text)
         self.assertIn("url :stable", text)
 
     def test_update(self) -> None:
@@ -49,6 +51,48 @@ class UpdateCommiterFormulaTest(unittest.TestCase):
         self.assertIn(SHA_B, text)
         self.assertNotIn(updater.expected_url("1.0.1"), text)
         self.assertNotIn(V101_SHA, text)
+        self.assertIn('bin.install "bin/commiter"', text)
+        self.assertIn('libexec.install "libexec/commiter-mlx-helper"', text)
+
+    def test_update_repairs_existing_install_layout(self) -> None:
+        legacy = formula_text("1.0.1", V101_SHA).replace(
+            '    bin.install "bin/commiter"\n'
+            '    libexec.install "libexec/commiter-mlx-helper"',
+            '    bin.install "commiter"',
+        )
+        self.formula.parent.mkdir(parents=True, exist_ok=True)
+        self.formula.write_text(legacy, encoding="utf-8")
+
+        status = updater.update_formula(self.formula, "1.0.2", SHA_B)
+
+        self.assertEqual(status, "updated")
+        text = self.formula.read_text(encoding="utf-8")
+        self.assertIn('bin.install "bin/commiter"', text)
+        self.assertIn('libexec.install "libexec/commiter-mlx-helper"', text)
+
+    def test_update_repairs_existing_helper_smoke_test(self) -> None:
+        legacy = formula_text("1.0.1", V101_SHA).replace(
+            '  test do\n'
+            '    assert_match version.to_s, shell_output("#{bin}/commiter version")\n'
+            '    helper = libexec/"commiter-mlx-helper"\n'
+            '    assert_predicate helper, :executable?\n'
+            '    system "codesign", "--verify", "--strict", helper\n'
+            '    helper_output = pipe_output(helper.to_s, "", 0)\n'
+            '    assert_match \'"runtime":"mlx"\', helper_output\n'
+            '  end',
+            '  test do\n'
+            '    assert_match version.to_s, shell_output("#{bin}/commiter version")\n'
+            '  end',
+        )
+        self.formula.parent.mkdir(parents=True, exist_ok=True)
+        self.formula.write_text(legacy, encoding="utf-8")
+
+        status = updater.update_formula(self.formula, "1.0.2", SHA_B)
+
+        self.assertEqual(status, "updated")
+        text = self.formula.read_text(encoding="utf-8")
+        self.assertIn('pipe_output(helper.to_s, "", 0)', text)
+        self.assertIn('assert_match \'"runtime":"mlx"\', helper_output', text)
 
     def test_numeric_patch_update(self) -> None:
         self.write_formula("1.0.9", SHA_A)

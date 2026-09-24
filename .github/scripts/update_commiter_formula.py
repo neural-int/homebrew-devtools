@@ -16,6 +16,8 @@ URL_RE = re.compile(r'^(  url )"[^"]+"', re.MULTILINE)
 SHA_RE = re.compile(r'^(  sha256 )"[0-9a-fA-F]+"', re.MULTILINE)
 URL_VALUE_RE = re.compile(r'^  url "([^"]+)"', re.MULTILINE)
 SHA_VALUE_RE = re.compile(r'^  sha256 "([0-9a-fA-F]+)"', re.MULTILINE)
+INSTALL_RE = re.compile(r"(?ms)^  def install\n.*?^  end$")
+TEST_RE = re.compile(r"(?ms)^  test do\n.*?^  end$")
 CURRENT_URL_RE = re.compile(
     rf"^{re.escape(HOMEPAGE)}/releases/download/"
     r"v(\d+\.\d+\.\d+)/commiter_\1_darwin_arm64\.zip$"
@@ -38,7 +40,8 @@ class Commiter < Formula
   depends_on macos: :sonoma
 
   def install
-    bin.install "commiter"
+    bin.install "bin/commiter"
+    libexec.install "libexec/commiter-mlx-helper"
   end
 
   def caveats
@@ -53,6 +56,11 @@ class Commiter < Formula
 
   test do
     assert_match version.to_s, shell_output("#{{bin}}/commiter version")
+    helper = libexec/"commiter-mlx-helper"
+    assert_predicate helper, :executable?
+    system "codesign", "--verify", "--strict", helper
+    helper_output = pipe_output(helper.to_s, "", 0)
+    assert_match '"runtime":"mlx"', helper_output
   end
 end
 """
@@ -139,7 +147,19 @@ def update_formula(
             "publish a new version instead"
         )
 
-    updated = URL_RE.sub(rf'\1"{url}"', text, count=1)
+    install_match = INSTALL_RE.search(FORMULA_TEMPLATE)
+    if install_match is None:
+        raise FormulaError("Formula template is missing its install stanza")
+    updated, install_count = INSTALL_RE.subn(install_match.group(0), text, count=1)
+    if install_count != 1:
+        raise FormulaError("Formula/commiter.rb must contain exactly one install stanza")
+    test_match = TEST_RE.search(FORMULA_TEMPLATE)
+    if test_match is None:
+        raise FormulaError("Formula template is missing its test stanza")
+    updated, test_count = TEST_RE.subn(test_match.group(0), updated, count=1)
+    if test_count != 1:
+        raise FormulaError("Formula/commiter.rb must contain exactly one test stanza")
+    updated = URL_RE.sub(rf'\1"{url}"', updated, count=1)
     updated = SHA_RE.sub(rf'\1"{sha256}"', updated, count=1)
     if updated == text:
         raise FormulaError("Formula rewrite produced no changes")
