@@ -79,6 +79,23 @@ class UpdateCommiterFormulaTest(unittest.TestCase):
         self.assertIn('libexec.install "libexec/commiter-mlx-helper"', text)
         self.assertIn('libexec.install "libexec/mlx.metallib"', text)
 
+    def test_update_repairs_existing_caveats(self) -> None:
+        legacy = formula_text("1.0.1", V101_SHA).replace(
+            '      commiter requires Git and a local LLM backend.\n'
+            '      The default Ollama backend requires a local Ollama 0.31.2+ instance on loopback.\n',
+            '      commiter requires Git and a local Ollama 0.31.2+ instance on loopback.\n',
+        )
+        self.formula.parent.mkdir(parents=True, exist_ok=True)
+        self.formula.write_text(legacy, encoding="utf-8")
+
+        status = updater.update_formula(self.formula, "1.0.2", SHA_B)
+
+        self.assertEqual(status, "updated")
+        text = self.formula.read_text(encoding="utf-8")
+        self.assertIn('commiter requires Git and a local LLM backend.', text)
+        self.assertIn('The default Ollama backend requires a local Ollama 0.31.2+ instance on loopback.', text)
+        self.assertNotIn('commiter requires Git and a local Ollama 0.31.2+ instance on loopback.', text)
+
     def test_update_repairs_existing_helper_smoke_test(self) -> None:
         legacy = updater.TEST_RE.sub(
             lambda _: '  test do\n'

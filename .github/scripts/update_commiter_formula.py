@@ -17,6 +17,7 @@ SHA_RE = re.compile(r'^(  sha256 )"[0-9a-fA-F]+"', re.MULTILINE)
 URL_VALUE_RE = re.compile(r'^  url "([^"]+)"', re.MULTILINE)
 SHA_VALUE_RE = re.compile(r'^  sha256 "([0-9a-fA-F]+)"', re.MULTILINE)
 INSTALL_RE = re.compile(r"(?ms)^  def install\n.*?^  end$")
+CAVEATS_RE = re.compile(r"(?ms)^  def caveats\n.*?^  end$")
 TEST_RE = re.compile(r"(?ms)^  test do\n.*?^  end$")
 CURRENT_URL_RE = re.compile(
     rf"^{re.escape(HOMEPAGE)}/releases/download/"
@@ -137,6 +138,9 @@ def update_formula(
     install_count = len(list(INSTALL_RE.finditer(text)))
     if install_count != 1:
         raise FormulaError("Formula/commiter.rb must contain exactly one install stanza")
+    caveats_count = len(list(CAVEATS_RE.finditer(text)))
+    if caveats_count != 1:
+        raise FormulaError("Formula/commiter.rb must contain exactly one caveats stanza")
     test_count = len(list(TEST_RE.finditer(text)))
     if test_count != 1:
         raise FormulaError("Formula/commiter.rb must contain exactly one test stanza")
@@ -162,6 +166,10 @@ def update_formula(
     if install_match is None:
         raise FormulaError("Formula template is missing its install stanza")
     updated = INSTALL_RE.sub(install_match.group(0), text, count=1)
+    caveats_match = CAVEATS_RE.search(rendered_template)
+    if caveats_match is None:
+        raise FormulaError("Formula template is missing its caveats stanza")
+    updated = CAVEATS_RE.sub(lambda _: caveats_match.group(0), updated, count=1)
     test_match = TEST_RE.search(rendered_template)
     if test_match is None:
         raise FormulaError("Formula template is missing its test stanza")
