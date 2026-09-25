@@ -38,7 +38,15 @@ class UpdateCommiterFormulaTest(unittest.TestCase):
         text = self.formula.read_text(encoding="utf-8")
         self.assertIn(updater.expected_url("1.0.0"), text)
         self.assertIn(SHA_A, text)
+        self.assertIn('bin.install "bin/commiter"', text)
+        self.assertIn('libexec.install "libexec/commiter-mlx-helper"', text)
+        self.assertIn('libexec.install "libexec/mlx.metallib"', text)
         self.assertIn("url :stable", text)
+        self.assertIn('shell_output("#{helper} --smoke-metal")', text)
+        self.assertIn(
+            'The default Ollama backend requires a local Ollama 0.31.2+ instance on loopback.',
+            text,
+        )
 
     def test_update(self) -> None:
         self.write_formula("1.0.1", V101_SHA)
@@ -49,6 +57,84 @@ class UpdateCommiterFormulaTest(unittest.TestCase):
         self.assertIn(SHA_B, text)
         self.assertNotIn(updater.expected_url("1.0.1"), text)
         self.assertNotIn(V101_SHA, text)
+        self.assertIn('bin.install "bin/commiter"', text)
+        self.assertIn('libexec.install "libexec/commiter-mlx-helper"', text)
+        self.assertIn('libexec.install "libexec/mlx.metallib"', text)
+
+    def test_update_repairs_existing_install_layout(self) -> None:
+        legacy = formula_text("1.0.1", V101_SHA).replace(
+            '    bin.install "bin/commiter"\n'
+            '    libexec.install "libexec/commiter-mlx-helper"\n'
+            '    libexec.install "libexec/mlx.metallib"',
+            '    bin.install "commiter"',
+        )
+        self.formula.parent.mkdir(parents=True, exist_ok=True)
+        self.formula.write_text(legacy, encoding="utf-8")
+
+        status = updater.update_formula(self.formula, "1.0.2", SHA_B)
+
+        self.assertEqual(status, "updated")
+        text = self.formula.read_text(encoding="utf-8")
+        self.assertIn('bin.install "bin/commiter"', text)
+        self.assertIn('libexec.install "libexec/commiter-mlx-helper"', text)
+        self.assertIn('libexec.install "libexec/mlx.metallib"', text)
+
+    def test_update_repairs_existing_caveats(self) -> None:
+        legacy = formula_text("1.0.1", V101_SHA).replace(
+            '      commiter requires Git and a local LLM backend.\n'
+            '      The default Ollama backend requires a local Ollama 0.31.2+ instance on loopback.\n',
+            '      commiter requires Git and a local Ollama 0.31.2+ instance on loopback.\n',
+        )
+        self.formula.parent.mkdir(parents=True, exist_ok=True)
+        self.formula.write_text(legacy, encoding="utf-8")
+
+        status = updater.update_formula(self.formula, "1.0.2", SHA_B)
+
+        self.assertEqual(status, "updated")
+        text = self.formula.read_text(encoding="utf-8")
+        self.assertIn('commiter requires Git and a local LLM backend.', text)
+        self.assertIn('The default Ollama backend requires a local Ollama 0.31.2+ instance on loopback.', text)
+        self.assertNotIn('commiter requires Git and a local Ollama 0.31.2+ instance on loopback.', text)
+
+    def test_update_repairs_existing_helper_smoke_test(self) -> None:
+        legacy = updater.TEST_RE.sub(
+            lambda _: '  test do\n'
+            '    assert_match version.to_s, shell_output("#{bin}/commiter version")\n'
+            '  end',
+            formula_text("1.0.1", V101_SHA),
+        )
+        self.formula.parent.mkdir(parents=True, exist_ok=True)
+        self.formula.write_text(legacy, encoding="utf-8")
+
+        status = updater.update_formula(self.formula, "1.0.2", SHA_B)
+
+        self.assertEqual(status, "updated")
+        text = self.formula.read_text(encoding="utf-8")
+        self.assertIn('assert_equal "metal_ok\\n", shell_output("#{helper} --smoke-metal")', text)
+
+    def test_duplicate_install_stanza(self) -> None:
+        text = formula_text("1.0.1", V101_SHA).replace(
+            "  def caveats\n",
+            '  def install\n    bin.install "commiter"\n  end\n\n  def caveats\n',
+        )
+        self.formula.parent.mkdir(parents=True, exist_ok=True)
+        self.formula.write_text(text, encoding="utf-8")
+
+        with self.assertRaisesRegex(updater.FormulaError, "exactly one install stanza"):
+            updater.update_formula(self.formula, "1.0.2", SHA_B)
+        self.assertEqual(self.formula.read_text(encoding="utf-8"), text)
+
+    def test_duplicate_test_stanza(self) -> None:
+        text = formula_text("1.0.1", V101_SHA).replace(
+            "  test do\n",
+            '  test do\n    assert true\n  end\n\n  test do\n',
+        )
+        self.formula.parent.mkdir(parents=True, exist_ok=True)
+        self.formula.write_text(text, encoding="utf-8")
+
+        with self.assertRaisesRegex(updater.FormulaError, "exactly one test stanza"):
+            updater.update_formula(self.formula, "1.0.2", SHA_B)
+        self.assertEqual(self.formula.read_text(encoding="utf-8"), text)
 
     def test_numeric_patch_update(self) -> None:
         self.write_formula("1.0.9", SHA_A)

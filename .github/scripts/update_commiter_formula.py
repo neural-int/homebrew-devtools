@@ -16,6 +16,9 @@ URL_RE = re.compile(r'^(  url )"[^"]+"', re.MULTILINE)
 SHA_RE = re.compile(r'^(  sha256 )"[0-9a-fA-F]+"', re.MULTILINE)
 URL_VALUE_RE = re.compile(r'^  url "([^"]+)"', re.MULTILINE)
 SHA_VALUE_RE = re.compile(r'^  sha256 "([0-9a-fA-F]+)"', re.MULTILINE)
+INSTALL_RE = re.compile(r"(?ms)^  def install\n.*?^  end$")
+CAVEATS_RE = re.compile(r"(?ms)^  def caveats\n.*?^  end$")
+TEST_RE = re.compile(r"(?ms)^  test do\n.*?^  end$")
 CURRENT_URL_RE = re.compile(
     rf"^{re.escape(HOMEPAGE)}/releases/download/"
     r"v(\d+\.\d+\.\d+)/commiter_\1_darwin_arm64\.zip$"
@@ -38,12 +41,15 @@ class Commiter < Formula
   depends_on macos: :sonoma
 
   def install
-    bin.install "commiter"
+    bin.install "bin/commiter"
+    libexec.install "libexec/commiter-mlx-helper"
+    libexec.install "libexec/mlx.metallib"
   end
 
   def caveats
     <<~EOS
-      commiter requires Git and a local Ollama 0.31.2+ instance on loopback.
+      commiter requires Git and a local LLM backend.
+      The default Ollama backend requires a local Ollama 0.31.2+ instance on loopback.
       After installing, run:
 
         commiter setup
@@ -53,6 +59,11 @@ class Commiter < Formula
 
   test do
     assert_match version.to_s, shell_output("#{{bin}}/commiter version")
+    helper = libexec/"commiter-mlx-helper"
+    assert_predicate libexec/"mlx.metallib", :exist?
+    assert_predicate helper, :executable?
+    system "codesign", "--verify", "--strict", helper
+    assert_equal "metal_ok\\n", shell_output("#{{helper}} --smoke-metal")
   end
 end
 """
@@ -124,6 +135,15 @@ def update_formula(
 
     text = formula_path.read_text(encoding="utf-8")
     current_version, current_url, current_sha256 = parse_current_formula(text)
+    install_count = len(list(INSTALL_RE.finditer(text)))
+    if install_count != 1:
+        raise FormulaError("Formula/commiter.rb must contain exactly one install stanza")
+    caveats_count = len(list(CAVEATS_RE.finditer(text)))
+    if caveats_count != 1:
+        raise FormulaError("Formula/commiter.rb must contain exactly one caveats stanza")
+    test_count = len(list(TEST_RE.finditer(text)))
+    if test_count != 1:
+        raise FormulaError("Formula/commiter.rb must contain exactly one test stanza")
     incoming = version_tuple(version)
     current = version_tuple(current_version)
 
@@ -139,7 +159,22 @@ def update_formula(
             "publish a new version instead"
         )
 
-    updated = URL_RE.sub(rf'\1"{url}"', text, count=1)
+    rendered_template = FORMULA_TEMPLATE.format(
+        homepage=HOMEPAGE, url=url, sha256=sha256
+    )
+    install_match = INSTALL_RE.search(rendered_template)
+    if install_match is None:
+        raise FormulaError("Formula template is missing its install stanza")
+    updated = INSTALL_RE.sub(install_match.group(0), text, count=1)
+    caveats_match = CAVEATS_RE.search(rendered_template)
+    if caveats_match is None:
+        raise FormulaError("Formula template is missing its caveats stanza")
+    updated = CAVEATS_RE.sub(lambda _: caveats_match.group(0), updated, count=1)
+    test_match = TEST_RE.search(rendered_template)
+    if test_match is None:
+        raise FormulaError("Formula template is missing its test stanza")
+    updated = TEST_RE.sub(lambda _: test_match.group(0), updated, count=1)
+    updated = URL_RE.sub(rf'\1"{url}"', updated, count=1)
     updated = SHA_RE.sub(rf'\1"{sha256}"', updated, count=1)
     if updated == text:
         raise FormulaError("Formula rewrite produced no changes")
