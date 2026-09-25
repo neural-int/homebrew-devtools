@@ -47,7 +47,8 @@ class Commiter < Formula
 
   def caveats
     <<~EOS
-      commiter requires Git and a local Ollama 0.31.2+ instance on loopback.
+      commiter requires Git and a local LLM backend.
+      The default Ollama backend requires a local Ollama 0.31.2+ instance on loopback.
       After installing, run:
 
         commiter setup
@@ -61,8 +62,7 @@ class Commiter < Formula
     assert_predicate libexec/"mlx.metallib", :exist?
     assert_predicate helper, :executable?
     system "codesign", "--verify", "--strict", helper
-    helper_output = pipe_output(helper.to_s, "", 0)
-    assert_match '"runtime":"mlx"', helper_output
+    assert_equal "metal_ok\\n", shell_output("#{{helper}} --smoke-metal")
   end
 end
 """
@@ -134,6 +134,12 @@ def update_formula(
 
     text = formula_path.read_text(encoding="utf-8")
     current_version, current_url, current_sha256 = parse_current_formula(text)
+    install_count = len(list(INSTALL_RE.finditer(text)))
+    if install_count != 1:
+        raise FormulaError("Formula/commiter.rb must contain exactly one install stanza")
+    test_count = len(list(TEST_RE.finditer(text)))
+    if test_count != 1:
+        raise FormulaError("Formula/commiter.rb must contain exactly one test stanza")
     incoming = version_tuple(version)
     current = version_tuple(current_version)
 
@@ -149,18 +155,17 @@ def update_formula(
             "publish a new version instead"
         )
 
-    install_match = INSTALL_RE.search(FORMULA_TEMPLATE)
+    rendered_template = FORMULA_TEMPLATE.format(
+        homepage=HOMEPAGE, url=url, sha256=sha256
+    )
+    install_match = INSTALL_RE.search(rendered_template)
     if install_match is None:
         raise FormulaError("Formula template is missing its install stanza")
-    updated, install_count = INSTALL_RE.subn(install_match.group(0), text, count=1)
-    if install_count != 1:
-        raise FormulaError("Formula/commiter.rb must contain exactly one install stanza")
-    test_match = TEST_RE.search(FORMULA_TEMPLATE)
+    updated = INSTALL_RE.sub(install_match.group(0), text, count=1)
+    test_match = TEST_RE.search(rendered_template)
     if test_match is None:
         raise FormulaError("Formula template is missing its test stanza")
-    updated, test_count = TEST_RE.subn(test_match.group(0), updated, count=1)
-    if test_count != 1:
-        raise FormulaError("Formula/commiter.rb must contain exactly one test stanza")
+    updated = TEST_RE.sub(lambda _: test_match.group(0), updated, count=1)
     updated = URL_RE.sub(rf'\1"{url}"', updated, count=1)
     updated = SHA_RE.sub(rf'\1"{sha256}"', updated, count=1)
     if updated == text:
