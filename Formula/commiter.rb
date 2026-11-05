@@ -33,7 +33,7 @@ class Commiter < Formula
   test do
     assert_match version.to_s, shell_output("#{bin}/commiter version")
     helper = libexec/"commiter-mlx-helper"
-    assert_predicate libexec/"mlx.metallib", :exist?
+    assert_path_exists libexec/"mlx.metallib"
     assert_predicate helper, :executable?
     system "codesign", "--verify", "--strict", helper
     assert_equal "metal_ok\n", shell_output("#{helper} --smoke-metal")
