@@ -61,6 +61,9 @@ jobs:
             ln -sfn "$GITHUB_WORKSPACE" "$tap_dir"
           fi
 
+      - name: Trust commiter formula
+        run: brew trust --formula neural-int/devtools/commiter
+
       - name: brew style
         run: brew style --formula neural-int/devtools/commiter
 

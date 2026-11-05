@@ -169,6 +169,10 @@ jobs:
             ln -sfn "$GITHUB_WORKSPACE" "$tap_dir"
           fi
 
+      - name: Trust commiter formula
+        if: steps.formula.outputs.status != 'unchanged'
+        run: brew trust --formula neural-int/devtools/commiter
+
       - name: brew audit --strict
         if: steps.formula.outputs.status != 'unchanged'
         shell: bash
