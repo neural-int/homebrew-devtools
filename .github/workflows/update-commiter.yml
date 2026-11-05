@@ -218,8 +218,11 @@ jobs:
           fi
           git commit -m "$title"
 
-          git fetch origin "refs/heads/${branch}:refs/remotes/origin/${branch}" || true
-          git push --force-with-lease origin "HEAD:${branch}"
+          git fetch origin
+          if ! git push origin "HEAD:${branch}"; then
+            echo "::error::Could not publish ${branch}; existing PR commits must be preserved. Resolve branch divergence or the push error before retrying."
+            exit 1
+          fi
 
           {
             echo "Automated Formula update after [\`${TAG}\`](https://github.com/${COMMITER_REPO}/releases/tag/${TAG}) was published."
