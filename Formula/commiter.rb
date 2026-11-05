@@ -21,12 +21,16 @@ class Commiter < Formula
 
   def caveats
     <<~EOS
-      commiter requires Git and a local LLM backend.
-      The default Ollama backend requires a local Ollama 0.31.2+ instance on loopback.
+      commiter requires Git and Apple Silicon macOS with the MLX backend.
+      Legacy Ollama and single-pass planning are no longer supported.
+
       After installing, run:
 
         commiter setup
         commiter doctor
+
+      Existing users must migrate legacy settings:
+      https://github.com/neural-int/commiter-cli/blob/v3.0.1/docs/migrations/harness004.md
     EOS
   end
 
