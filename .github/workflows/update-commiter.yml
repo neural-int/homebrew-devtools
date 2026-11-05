@@ -173,6 +173,10 @@ jobs:
         if: steps.formula.outputs.status != 'unchanged'
         run: brew trust --formula neural-int/devtools/commiter
 
+      - name: brew style
+        if: steps.formula.outputs.status != 'unchanged'
+        run: brew style --formula neural-int/devtools/commiter
+
       - name: brew audit --strict
         if: steps.formula.outputs.status != 'unchanged'
         shell: bash

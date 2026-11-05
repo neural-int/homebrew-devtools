@@ -43,6 +43,7 @@ class UpdateCommiterFormulaTest(unittest.TestCase):
         self.assertIn('libexec.install "libexec/mlx.metallib"', text)
         self.assertIn("url :stable", text)
         self.assertIn('shell_output("#{helper} --smoke-metal")', text)
+        self.assertIn('assert_path_exists libexec/"mlx.metallib"', text)
         self.assertIn(
             'The default Ollama backend requires a local Ollama 0.31.2+ instance on loopback.',
             text,
@@ -111,6 +112,7 @@ class UpdateCommiterFormulaTest(unittest.TestCase):
         self.assertEqual(status, "updated")
         text = self.formula.read_text(encoding="utf-8")
         self.assertIn('assert_equal "metal_ok\\n", shell_output("#{helper} --smoke-metal")', text)
+        self.assertIn('assert_path_exists libexec/"mlx.metallib"', text)
 
     def test_duplicate_install_stanza(self) -> None:
         text = formula_text("1.0.1", V101_SHA).replace(
