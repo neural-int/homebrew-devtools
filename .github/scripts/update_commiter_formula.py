@@ -46,16 +46,7 @@ class Commiter < Formula
     libexec.install "libexec/mlx.metallib"
   end
 
-  def caveats
-    <<~EOS
-      commiter requires Git and a local LLM backend.
-      The default Ollama backend requires a local Ollama 0.31.2+ instance on loopback.
-      After installing, run:
-
-        commiter setup
-        commiter doctor
-    EOS
-  end
+{caveats}
 
   test do
     assert_match version.to_s, shell_output("#{{bin}}/commiter version")
@@ -67,6 +58,44 @@ class Commiter < Formula
   end
 end
 """
+
+LEGACY_CAVEATS = """\
+  def caveats
+    <<~EOS
+      commiter requires Git and a local LLM backend.
+      The default Ollama backend requires a local Ollama 0.31.2+ instance on loopback.
+      After installing, run:
+
+        commiter setup
+        commiter doctor
+    EOS
+  end"""
+
+MLX_CAVEATS = """\
+  def caveats
+    <<~EOS
+      commiter requires Git and Apple Silicon macOS with the MLX backend.
+      Legacy Ollama and single-pass planning are no longer supported.
+
+      After installing, run:
+
+        commiter setup
+        commiter doctor
+
+      Existing users must migrate legacy settings:
+      {homepage}/blob/v{version}/docs/migrations/harness004.md
+    EOS
+  end"""
+
+
+def render_formula(version: str, sha256: str) -> str:
+    caveats = MLX_CAVEATS if version_tuple(version) >= (3, 0, 0) else LEGACY_CAVEATS
+    return FORMULA_TEMPLATE.format(
+        homepage=HOMEPAGE,
+        url=expected_url(version),
+        sha256=sha256,
+        caveats=caveats.format(homepage=HOMEPAGE, version=version),
+    )
 
 
 class FormulaError(Exception):
@@ -128,7 +157,7 @@ def update_formula(
     if not formula_path.exists():
         formula_path.parent.mkdir(parents=True, exist_ok=True)
         formula_path.write_text(
-            FORMULA_TEMPLATE.format(homepage=HOMEPAGE, url=url, sha256=sha256),
+            render_formula(version, sha256),
             encoding="utf-8",
         )
         return "created"
@@ -151,17 +180,13 @@ def update_formula(
         raise FormulaError(
             f"refusing to downgrade commiter from {current_version} to {version}"
         )
-    if incoming == current:
-        if url == current_url and sha256 == current_sha256:
-            return "unchanged"
+    if incoming == current and (url != current_url or sha256 != current_sha256):
         raise FormulaError(
             f"refusing to change url/sha256 for commiter {version}; "
             "publish a new version instead"
         )
 
-    rendered_template = FORMULA_TEMPLATE.format(
-        homepage=HOMEPAGE, url=url, sha256=sha256
-    )
+    rendered_template = render_formula(version, sha256)
     install_match = INSTALL_RE.search(rendered_template)
     if install_match is None:
         raise FormulaError("Formula template is missing its install stanza")
@@ -177,7 +202,7 @@ def update_formula(
     updated = URL_RE.sub(rf'\1"{url}"', updated, count=1)
     updated = SHA_RE.sub(rf'\1"{sha256}"', updated, count=1)
     if updated == text:
-        raise FormulaError("Formula rewrite produced no changes")
+        return "unchanged"
     formula_path.write_text(updated, encoding="utf-8")
     return "updated"
 

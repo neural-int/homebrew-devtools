@@ -15,11 +15,7 @@ V101_SHA = "eeecad933fa79db28e69d7c494142337365ccfad255faa754406e51b682b595e"
 
 
 def formula_text(version: str, sha256: str) -> str:
-    return updater.FORMULA_TEMPLATE.format(
-        homepage=updater.HOMEPAGE,
-        url=updater.expected_url(version),
-        sha256=sha256,
-    )
+    return updater.render_formula(version, sha256)
 
 
 class UpdateCommiterFormulaTest(unittest.TestCase):
@@ -61,6 +57,35 @@ class UpdateCommiterFormulaTest(unittest.TestCase):
         self.assertIn('bin.install "bin/commiter"', text)
         self.assertIn('libexec.install "libexec/commiter-mlx-helper"', text)
         self.assertIn('libexec.install "libexec/mlx.metallib"', text)
+
+    def test_mlx_caveats_on_create_and_upgrade(self) -> None:
+        for previous in (None, "2.0.0"):
+            with self.subTest(previous=previous):
+                formula = Path(self.tmpdir.name) / str(previous) / "commiter.rb"
+                if previous is not None:
+                    formula.parent.mkdir(parents=True)
+                    formula.write_text(formula_text(previous, SHA_A), encoding="utf-8")
+                status = updater.update_formula(formula, "3.0.1", SHA_B)
+                self.assertEqual(status, "created" if previous is None else "updated")
+                text = formula.read_text(encoding="utf-8")
+                self.assertIn("Apple Silicon macOS with the MLX backend", text)
+                self.assertIn("Legacy Ollama and single-pass planning are no longer supported.", text)
+                self.assertIn("/blob/v3.0.1/docs/migrations/harness004.md", text)
+                self.assertIn("commiter setup", text)
+                self.assertIn("commiter doctor", text)
+                self.assertNotIn("The default Ollama backend", text)
+
+    def test_same_version_repairs_legacy_caveats_without_changing_release(self) -> None:
+        legacy = updater.CAVEATS_RE.sub(
+            lambda _: updater.LEGACY_CAVEATS, formula_text("3.0.1", SHA_A)
+        )
+        self.formula.parent.mkdir(parents=True)
+        self.formula.write_text(legacy, encoding="utf-8")
+        self.assertEqual(updater.update_formula(self.formula, "3.0.1", SHA_A), "updated")
+        text = self.formula.read_text(encoding="utf-8")
+        self.assertEqual(updater.parse_current_formula(text), ("3.0.1", updater.expected_url("3.0.1"), SHA_A))
+        self.assertIn("Apple Silicon macOS with the MLX backend", text)
+        self.assertEqual(updater.update_formula(self.formula, "3.0.1", SHA_A), "unchanged")
 
     def test_update_repairs_existing_install_layout(self) -> None:
         legacy = formula_text("1.0.1", V101_SHA).replace(
